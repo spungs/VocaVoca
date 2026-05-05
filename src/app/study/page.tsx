@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
+import { BackIcon, CloseIcon, IconButton } from '@/components/IconButton';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type ReviewCard, type Word } from '@/lib/db';
 import { dueCards, ensureCard, newWordIds, rateCard } from '@/lib/srs';
@@ -244,43 +245,58 @@ function CardView({
     >
       {/* header */}
       <div className="flex items-center" style={{ padding: '14px 20px 0', gap: 12 }}>
-        <Link
-          href="/"
-          className="vv-press grid place-items-center"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
-            background: 'var(--vv-surface)',
-            color: 'var(--vv-ink-2)',
-          }}
-          aria-label="뒤로"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div className="flex" style={{ flex: 1, gap: 3 }}>
-          {Array.from({ length: total }).map((_, i) => (
+        <IconButton href="/" ariaLabel="뒤로">
+          <BackIcon />
+        </IconButton>
+        {total <= 30 ? (
+          <div className="flex" style={{ flex: 1, gap: 3 }}>
+            {Array.from({ length: total }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: 4,
+                  borderRadius: 2,
+                  background:
+                    i < position - 1
+                      ? 'var(--vv-ink)'
+                      : i === position - 1
+                        ? 'var(--vv-amber)'
+                        : 'var(--vv-line)',
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              background: 'var(--vv-line)',
+              overflow: 'hidden',
+              minWidth: 0,
+            }}
+          >
             <div
-              key={i}
               style={{
-                flex: 1,
-                height: 4,
+                height: '100%',
+                width: `${(position / total) * 100}%`,
+                background: 'var(--vv-amber)',
                 borderRadius: 2,
-                background:
-                  i < position - 1
-                    ? 'var(--vv-ink)'
-                    : i === position - 1
-                      ? 'var(--vv-amber)'
-                      : 'var(--vv-line)',
+                transition: 'width 240ms cubic-bezier(.2,.7,.2,1)',
               }}
             />
-          ))}
-        </div>
+          </div>
+        )}
         <span
           className="vv-en vv-num"
-          style={{ fontSize: 11, color: 'var(--vv-ink-3)', fontWeight: 600 }}
+          style={{
+            fontSize: 11,
+            color: 'var(--vv-ink-3)',
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
         >
           {position}
           <span style={{ opacity: 0.5 }}>/{total}</span>
@@ -589,22 +605,9 @@ function DoneView({
       style={{ padding: '24px 24px 24px', boxSizing: 'border-box', overflow: 'hidden' }}
     >
       <div className="flex" style={{ justifyContent: 'space-between' }}>
-        <Link
-          href="/"
-          className="vv-press grid place-items-center"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
-            background: 'var(--vv-surface)',
-            color: 'var(--vv-ink-2)',
-          }}
-          aria-label="닫기"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </Link>
+        <IconButton href="/" ariaLabel="닫기">
+          <CloseIcon />
+        </IconButton>
       </div>
 
       <div

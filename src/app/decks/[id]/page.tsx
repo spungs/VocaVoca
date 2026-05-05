@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { BackIcon, IconButton } from '@/components/IconButton';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type Deck, type Word } from '@/lib/db';
 
@@ -83,22 +84,9 @@ export default function DeckPage() {
     >
       {/* header */}
       <div className="flex items-center justify-between" style={{ padding: '0 20px' }}>
-        <Link
-          href="/"
-          className="vv-press grid place-items-center"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
-            background: 'var(--vv-surface)',
-            color: 'var(--vv-ink-2)',
-          }}
-          aria-label="뒤로"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </Link>
+        <IconButton href="/" ariaLabel="뒤로">
+          <BackIcon />
+        </IconButton>
         <p style={{ fontWeight: 700, fontSize: 15 }}>덱 미리보기</p>
         <div style={{ width: 34 }} />
       </div>
