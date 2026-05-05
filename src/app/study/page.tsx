@@ -12,7 +12,8 @@ import { dueCards, ensureCard, newWordIds, rateCard } from '@/lib/srs';
 
 interface QueueItem {
   word: Word;
-  card: ReviewCard;
+  /** null = 아직 카드 미생성. 사용자가 처음 평가할 때 lazily ensureCard. */
+  card: ReviewCard | null;
 }
 
 type SwipeDir = 'again' | 'hard' | 'good' | 'easy';
@@ -72,26 +73,27 @@ function StudyPageInner() {
         const items: QueueItem[] = [];
 
         if (reviewIds && reviewIds.length > 0) {
-          // 미니 학습 모드: 지정된 단어만 다시 학습
+          // 미니 학습 모드: 지정된 단어만 다시 학습 (카드는 lazy)
           for (const id of reviewIds) {
             const word = await db.words.get(id);
             if (!word) continue;
-            const card = await ensureCard(id);
+            const card = (await db.cards.get(id)) ?? null;
             items.push({ word, card });
           }
         } else if (deckParam) {
-          // 덱 모드: 그 덱의 모든 단어 (frequency 높은 순)
+          // 덱 모드: 그 덱의 모든 단어 (frequency 높은 순, 카드는 lazy)
           const deck = await db.decks.get(deckParam);
           if (deck) {
             const words = await db.words.where('id').anyOf(deck.wordIds).toArray();
             words.sort((a, b) => b.frequency - a.frequency);
+            const existingCards = await db.cards.where('id').anyOf(deck.wordIds).toArray();
+            const cardMap = new Map(existingCards.map((c) => [c.id, c]));
             for (const word of words) {
-              const card = await ensureCard(word.id);
-              items.push({ word, card });
+              items.push({ word, card: cardMap.get(word.id) ?? null });
             }
           }
         } else {
-          // 일반 학습 모드: due + new
+          // 일반 학습 모드: due (이미 카드 있음) + new (카드는 lazy)
           const due = await dueCards(settings.dailyReviewCap);
           const newIds = await newWordIds(settings.dailyNewCards);
           for (const card of due) {
@@ -101,8 +103,7 @@ function StudyPageInner() {
           for (const id of newIds) {
             const word = await db.words.get(id);
             if (!word) continue;
-            const card = await ensureCard(id);
-            items.push({ word, card });
+            items.push({ word, card: null });
           }
         }
 
@@ -128,7 +129,8 @@ function StudyPageInner() {
     async (rating: Grade, durationMs: number) => {
       const item = queue[index];
       if (!item) return;
-      await rateCard(item.card, rating, durationMs);
+      const card = item.card ?? (await ensureCard(item.word.id));
+      await rateCard(card, rating, durationMs);
       if (rating !== Rating.Again) correctRef.current += 1;
       if (index + 1 >= queue.length) {
         setDone({
@@ -147,9 +149,10 @@ function StudyPageInner() {
     async (durationMs: number) => {
       const item = queue[index];
       if (!item) return;
+      const card = item.card ?? (await ensureCard(item.word.id));
       // Easy로 간주해 FSRS 진척도 함께 갱신 (un-master 시 데이터 보존)
-      await rateCard(item.card, Rating.Easy, durationMs);
-      await setDisposition(item.card.id, 'mastered');
+      await rateCard(card, Rating.Easy, durationMs);
+      await setDisposition(item.word.id, 'mastered');
       correctRef.current += 1;
       if (index + 1 >= queue.length) {
         setDone({
@@ -232,13 +235,13 @@ function CardView({
   useEffect(() => {
     shownAtRef.current = Date.now();
     let cancelled = false;
-    isMasteryCandidate(item.card.id).then((c) => {
+    isMasteryCandidate(item.word.id).then((c) => {
       if (!cancelled) setIsCandidate(c);
     });
     return () => {
       cancelled = true;
     };
-  }, [item.card.id]);
+  }, [item.word.id]);
 
   const handleMasterClick = () => {
     const start = shownAtRef.current || Date.now();
