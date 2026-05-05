@@ -71,7 +71,8 @@ export interface UserSettings {
   id: 'me';
   dailyNewCards: number;
   dailyReviewCap: number;
-  preferredVoice: 'en-AU' | 'en-GB' | 'en-US';
+  /** @deprecated 단어 카드의 호주/영국/미국 버튼을 직접 누르는 방식으로 대체됨. 호환을 위해 남겨둠. */
+  preferredVoice?: 'en-AU' | 'en-GB' | 'en-US';
   notifyAt?: string;
   fsrsParams?: number[];
 }

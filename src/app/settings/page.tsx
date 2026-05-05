@@ -15,12 +15,6 @@ import {
   type Theme,
 } from '@/lib/theme';
 
-const VOICE_OPTIONS: { value: UserSettings['preferredVoice']; label: string }[] = [
-  { value: 'en-AU', label: '호주식 (en-AU)' },
-  { value: 'en-GB', label: '영국식 (en-GB)' },
-  { value: 'en-US', label: '미국식 (en-US)' },
-];
-
 const NEW_CARD_OPTIONS = [10, 15, 20, 25];
 const REVIEW_CAP_OPTIONS = [50, 100, 150, 200];
 
@@ -197,17 +191,6 @@ export default function SettingsPage() {
             value={settings.dailyReviewCap}
             options={REVIEW_CAP_OPTIONS}
             onChange={(v) => updateSettings({ dailyReviewCap: v })}
-          />
-        </FieldRow>
-      </Section>
-
-      {/* 발음 */}
-      <Section label="발음">
-        <FieldRow title="음성 (TTS)" sub="단어 카드의 🔊 버튼이 사용할 영어 음성">
-          <RadioGroup
-            value={settings.preferredVoice}
-            options={VOICE_OPTIONS}
-            onChange={(v) => updateSettings({ preferredVoice: v })}
           />
         </FieldRow>
       </Section>
@@ -543,67 +526,3 @@ function AccentSwatches({
   );
 }
 
-function RadioGroup<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {options.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className="vv-press"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 12px',
-              border: '1px solid',
-              borderColor: active ? 'var(--vv-amber)' : 'var(--vv-line-2)',
-              background: active ? 'var(--vv-amber-soft)' : 'transparent',
-              color: active ? 'var(--vv-amber)' : 'var(--vv-ink-2)',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
-          >
-            <span
-              style={{
-                width: 16,
-                height: 16,
-                borderRadius: '50%',
-                border: '2px solid',
-                borderColor: active ? 'var(--vv-amber)' : 'var(--vv-line-2)',
-                position: 'relative',
-                flexShrink: 0,
-              }}
-            >
-              {active && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    inset: 3,
-                    borderRadius: '50%',
-                    background: 'var(--vv-amber)',
-                  }}
-                />
-              )}
-            </span>
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}

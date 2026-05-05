@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { bootstrap } from '@/lib/bootstrap';
-import { getDb, type ReviewCard, type UserSettings, type Word } from '@/lib/db';
+import { getDb, type ReviewCard, type Word } from '@/lib/db';
 import { dueCards, ensureCard, newWordIds, rateCard } from '@/lib/srs';
 
 interface QueueItem {
@@ -57,7 +57,6 @@ function StudyPageInner() {
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [index, setIndex] = useState(0);
-  const [voice, setVoice] = useState<UserSettings['preferredVoice']>('en-AU');
   const [done, setDone] = useState<{ learned: number; correct: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,7 +93,6 @@ function StudyPageInner() {
         }
 
         if (cancelled) return;
-        setVoice(settings.preferredVoice);
         setQueue(items);
         if (items.length === 0) {
           setDone({ learned: 0, correct: 0, total: 0 });
@@ -158,7 +156,6 @@ function StudyPageInner() {
       item={item}
       position={index + 1}
       total={queue.length}
-      voice={voice}
       onRate={handleRate}
     />
   );
@@ -168,13 +165,11 @@ function CardView({
   item,
   position,
   total,
-  voice,
   onRate,
 }: {
   item: QueueItem;
   position: number;
   total: number;
-  voice: UserSettings['preferredVoice'];
   onRate: (rating: Grade, durationMs: number) => void;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -360,47 +355,25 @@ function CardView({
             >
               {item.word.term}
             </p>
-            <div className="flex" style={{ alignItems: 'center', gap: 10, marginTop: 10 }}>
-              <button
-                type="button"
-                onClick={() => speak(item.word, voice)}
-                className="vv-press grid place-items-center"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'var(--vv-amber-soft)',
-                  color: 'var(--vv-amber)',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-                aria-label="발음 듣기"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11 5L6 9H2v6h4l5 4zM15.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z" />
-                </svg>
-              </button>
+            <div
+              className="flex"
+              style={{ alignItems: 'center', gap: 6, marginTop: 10, flexWrap: 'wrap' }}
+            >
+              <VoiceBtn label="호주" lang="en-AU" word={item.word} />
+              <VoiceBtn label="영국" lang="en-GB" word={item.word} />
+              <VoiceBtn label="미국" lang="en-US" word={item.word} />
               {item.word.ipa && (
                 <span
                   className="vv-mono"
-                  style={{ fontSize: 13, color: 'var(--vv-ink-2)' }}
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--vv-ink-2)',
+                    marginLeft: 'auto',
+                  }}
                 >
                   {item.word.ipa}
                 </span>
               )}
-              <span
-                style={{
-                  fontSize: 10,
-                  color: 'var(--vv-ink-3)',
-                  marginLeft: 'auto',
-                  padding: '2px 6px',
-                  border: '1px solid var(--vv-line-2)',
-                  borderRadius: 4,
-                }}
-              >
-                en-AU
-              </span>
             </div>
           </div>
 
@@ -783,14 +756,54 @@ function MiniStat({
   );
 }
 
-function speak(word: Word, preferredLang: UserSettings['preferredVoice'] = 'en-AU') {
+type VoiceLang = 'en-AU' | 'en-GB' | 'en-US';
+
+function VoiceBtn({
+  label,
+  lang,
+  word,
+}: {
+  label: string;
+  lang: VoiceLang;
+  word: Word;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => speak(word, lang)}
+      className="vv-press"
+      aria-label={`${label} 발음`}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '6px 10px',
+        borderRadius: 999,
+        border: '1px solid var(--vv-line-2)',
+        background: 'var(--vv-surface-2)',
+        color: 'var(--vv-ink-2)',
+        fontSize: 11,
+        fontWeight: 600,
+        cursor: 'pointer',
+      }}
+    >
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M11 5L6 9H2v6h4l5 4zM15.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z" />
+      </svg>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function speak(word: Word, lang: VoiceLang) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(word.term);
   const voices = window.speechSynthesis.getVoices();
-  const exact = voices.find((v) => v.lang === preferredLang);
+  const exact = voices.find((v) => v.lang === lang);
   const fallback = voices.find((v) => v.lang.startsWith('en'));
   if (exact) u.voice = exact;
   else if (fallback) u.voice = fallback;
-  u.lang = preferredLang;
+  u.lang = lang;
+  window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
