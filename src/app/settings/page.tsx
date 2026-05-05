@@ -9,7 +9,7 @@ import {
   requestNotificationPermission,
   type NotificationPermissionState,
 } from '@/lib/notify';
-import { buildDefaultPlan, daysUntil } from '@/lib/plan';
+import { daysUntil } from '@/lib/plan';
 import {
   ACCENT_MAP,
   getStoredAccent,
@@ -95,14 +95,32 @@ export default function SettingsPage() {
     await db.settings.put(next);
   };
 
-  const updateDeparture = async (dateStr: string) => {
+  const updateTargetDate = async (dateStr: string) => {
     if (!plan) return;
-    const next = new Date(dateStr);
-    if (Number.isNaN(next.getTime())) return;
-    const rebuilt = buildDefaultPlan(next, plan.startedAt, plan.goalLabel);
-    setPlan(rebuilt);
+    if (dateStr === '') {
+      // 빈 값 → targetDate 제거
+      const next = { ...plan };
+      delete next.targetDate;
+      setPlan(next);
+      const db = getDb();
+      await db.plans.put(next);
+      return;
+    }
+    const parsed = new Date(dateStr);
+    if (Number.isNaN(parsed.getTime())) return;
+    const next: StudyPlan = { ...plan, targetDate: parsed.getTime() };
+    setPlan(next);
     const db = getDb();
-    await db.plans.put(rebuilt);
+    await db.plans.put(next);
+  };
+
+  const clearTargetDate = async () => {
+    if (!plan || typeof plan.targetDate !== 'number') return;
+    const next = { ...plan };
+    delete next.targetDate;
+    setPlan(next);
+    const db = getDb();
+    await db.plans.put(next);
   };
 
   const updateGoalLabel = async (label: string) => {
@@ -143,7 +161,7 @@ export default function SettingsPage() {
     );
   }
 
-  const dDay = daysUntil(plan.departureDate);
+  const dDay = daysUntil(plan.targetDate);
 
   return (
     <main
@@ -198,13 +216,13 @@ export default function SettingsPage() {
       <Section label="목표">
         <FieldRow
           title="목표 이름"
-          sub="홈 화면에 표시됩니다. 예: 호주 워홀, TOEIC 800점, 어학연수"
+          sub="홈 화면에 표시됩니다. 빈 값으로 두면 표시 안 됨"
         >
           <input
             type="text"
             value={plan.goalLabel}
             maxLength={30}
-            placeholder="목표를 입력하세요"
+            placeholder="예: TOEIC 800점, 시험 대비, 자유 학습"
             onChange={(e) => updateGoalLabel(e.target.value)}
             style={{
               width: '100%',
@@ -221,25 +239,52 @@ export default function SettingsPage() {
         </FieldRow>
         <Divider />
         <FieldRow
-          title="목표일"
-          sub={`현재 D−${dDay}`}
+          title="목표일 (선택)"
+          sub={
+            dDay !== null
+              ? `현재 D−${dDay} · 비우면 D-day 대신 학습 일수 표시`
+              : '설정 안 하면 D-day 대신 학습 시작 후 일수가 표시됩니다'
+          }
         >
-          <input
-            type="date"
-            value={toDateInputValue(plan.departureDate)}
-            onChange={(e) => updateDeparture(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: '1px solid var(--vv-line-2)',
-              background: 'var(--vv-bg)',
-              color: 'var(--vv-ink)',
-              fontSize: 14,
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }}
-          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="date"
+              value={
+                typeof plan.targetDate === 'number' ? toDateInputValue(plan.targetDate) : ''
+              }
+              onChange={(e) => updateTargetDate(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid var(--vv-line-2)',
+                background: 'var(--vv-bg)',
+                color: 'var(--vv-ink)',
+                fontSize: 14,
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+            {typeof plan.targetDate === 'number' && (
+              <button
+                type="button"
+                onClick={clearTargetDate}
+                className="vv-press"
+                style={{
+                  padding: '10px 14px',
+                  border: '1px solid var(--vv-line-2)',
+                  background: 'transparent',
+                  color: 'var(--vv-ink-3)',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                지우기
+              </button>
+            )}
+          </div>
         </FieldRow>
       </Section>
 

@@ -53,22 +53,14 @@ export interface ReviewLog {
   prevState: State;
 }
 
-export type PhaseName = 'survival' | 'job-specific' | 'social';
-
-export interface PlanPhase {
-  name: PhaseName;
-  startWeek: number;
-  endWeek: number;
-  deckIds: string[];
-  targetWordsPerDay: number;
-}
-
 export interface StudyPlan {
   id: 'main';
+  /** 사용자가 정한 목표 라벨. 빈 문자열이면 미설정. */
   goalLabel: string;
-  departureDate: number;
+  /** 학습 시작일. */
   startedAt: number;
-  phases: PlanPhase[];
+  /** 선택적 목표일(타임스탬프). 설정 안 하면 D-day 표시 X, DAY N 카운트업. */
+  targetDate?: number;
 }
 
 export interface UserSettings {

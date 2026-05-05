@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { bootstrap } from '@/lib/bootstrap';
-import { getDb, type Deck, type StudyPlan, type UserSettings, type PhaseName } from '@/lib/db';
+import { getDb, type Deck, type StudyPlan, type UserSettings } from '@/lib/db';
 import { maybeNotifyToday, setBadge } from '@/lib/notify';
-import { currentPhase, daysUntil } from '@/lib/plan';
+import { daysSinceStart, daysUntil, totalWeeksToTarget, weekSinceStart } from '@/lib/plan';
 import { dueCards, newWordIds } from '@/lib/srs';
 import { computeStreak } from '@/lib/streak';
 
@@ -18,15 +18,8 @@ interface HomeState {
   newCount: number;
   totalCards: number;
   totalLearned: number;
-  currentWeek: number;
   streak: number;
 }
-
-const PHASE_LABEL: Record<PhaseName, string> = {
-  survival: '생존 영어',
-  'job-specific': '직무 영어',
-  social: '사회 영어',
-};
 
 const DECK_ICON: Record<string, string> = {
   cafe: '☕',
@@ -52,9 +45,6 @@ export default function HomePage() {
         const due = await dueCards(settings.dailyReviewCap);
         const fresh = await newWordIds(settings.dailyNewCards);
         const totalCards = await db.cards.count();
-        const currentWeek = Math.floor(
-          (Date.now() - plan.startedAt) / (7 * 24 * 60 * 60 * 1000),
-        );
         const deckProgress: Record<string, number> = {};
         await Promise.all(
           decks.map(async (deck) => {
@@ -74,7 +64,6 @@ export default function HomePage() {
           newCount: fresh.length,
           totalCards,
           totalLearned,
-          currentWeek,
           streak,
         });
         // PWA 배지 + 포그라운드 알림 (홈 진입 시 1회)
@@ -105,16 +94,16 @@ export default function HomePage() {
     );
   }
 
-  const dDay = daysUntil(state.plan.departureDate);
-  const phase = currentPhase(state.plan);
-  const totalWeeks = state.plan.phases[state.plan.phases.length - 1].endWeek;
+  const dDay = daysUntil(state.plan.targetDate);
+  const totalWeeks = totalWeeksToTarget(state.plan);
+  const currentWeek = weekSinceStart(state.plan.startedAt);
+  const dayN = daysSinceStart(state.plan.startedAt);
   const totalWordsAvailable = state.decks.reduce((a, d) => a + d.wordIds.length, 0);
   const totalDue = state.newCount + state.dueCount;
   const progressEstMin = Math.max(2, Math.round(totalDue * 0.35));
-  const totalProgress = totalCardsExisting(state) ? state.totalLearned / Math.max(1, totalWordsAvailable) : 0;
-  const phaseTicks = state.plan.phases
-    .slice(0, -1)
-    .map((p) => p.endWeek / totalWeeks);
+  const totalProgress = state.totalCards > 0 ? state.totalLearned / Math.max(1, totalWordsAvailable) : 0;
+  const hasTarget = dDay !== null;
+  const hasGoalLabel = state.plan.goalLabel.trim().length > 0;
 
   return (
     <main className="vv-paper mx-auto flex w-full max-w-md flex-1 flex-col" style={{ paddingTop: 24, paddingBottom: 28 }}>
@@ -176,7 +165,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* D-day hero */}
+      {/* hero */}
       <div style={{ padding: '20px 24px 0' }}>
         <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -184,23 +173,26 @@ export default function HomePage() {
               className="vv-stamp"
               style={{ fontSize: 11, fontWeight: 600, color: 'var(--vv-ink-3)' }}
             >
-              목표까지
+              {hasTarget ? '목표까지' : '학습 진행'}
             </p>
             <div className="flex" style={{ alignItems: 'baseline', gap: 4, marginTop: 2 }}>
               <span
                 className="vv-en vv-num"
                 style={{ fontSize: 64, fontWeight: 800, lineHeight: 0.95, letterSpacing: '-0.04em' }}
               >
-                D−{dDay}
+                {hasTarget ? `D−${dDay}` : `DAY ${dayN}`}
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--vv-ink-2)', marginTop: 6 }}>
-              <span style={{ fontWeight: 600 }}>{state.plan.goalLabel}</span>
-              <span style={{ color: 'var(--vv-ink-3)' }}> · {PHASE_LABEL[phase.name]} · 주 </span>
+              {hasGoalLabel && <span style={{ fontWeight: 600 }}>{state.plan.goalLabel}</span>}
+              {hasGoalLabel && <span style={{ color: 'var(--vv-ink-3)' }}> · </span>}
+              <span style={{ color: 'var(--vv-ink-3)' }}>주 </span>
               <span className="vv-num" style={{ fontWeight: 600 }}>
-                {state.currentWeek}
+                {currentWeek}
               </span>
-              <span style={{ color: 'var(--vv-ink-3)' }}>/{totalWeeks}</span>
+              {totalWeeks !== null && (
+                <span style={{ color: 'var(--vv-ink-3)' }}>/{totalWeeks}</span>
+              )}
             </p>
           </div>
           <div
@@ -220,39 +212,27 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* phase progress bar */}
-        <div
-          style={{
-            marginTop: 16,
-            height: 6,
-            borderRadius: 999,
-            background: 'var(--vv-line)',
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
+        {/* progress bar (목표일 있을 때만) */}
+        {hasTarget && totalWeeks !== null && (
           <div
             style={{
-              height: '100%',
-              width: `${Math.min(100, (state.currentWeek / totalWeeks) * 100)}%`,
-              background: 'var(--vv-ink)',
+              marginTop: 16,
+              height: 6,
               borderRadius: 999,
+              background: 'var(--vv-line)',
+              overflow: 'hidden',
             }}
-          />
-          {phaseTicks.map((p, i) => (
+          >
             <div
-              key={i}
               style={{
-                position: 'absolute',
-                left: `${p * 100}%`,
-                top: -2,
-                width: 2,
-                height: 10,
-                background: 'var(--vv-bg)',
+                height: '100%',
+                width: `${Math.min(100, (currentWeek / totalWeeks) * 100)}%`,
+                background: 'var(--vv-ink)',
+                borderRadius: 999,
               }}
             />
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* today card */}
@@ -332,14 +312,14 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* scenario decks */}
+      {/* decks */}
       <div style={{ padding: '24px 24px 0' }}>
         <div className="flex" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
           <p
             className="vv-stamp"
             style={{ fontSize: 11, fontWeight: 700, color: 'var(--vv-ink-3)' }}
           >
-            시나리오
+            덱
           </p>
           <span style={{ fontSize: 12, color: 'var(--vv-ink-3)' }}>{state.decks.length}개</span>
         </div>
@@ -382,10 +362,6 @@ export default function HomePage() {
       </div>
     </main>
   );
-}
-
-function totalCardsExisting(state: HomeState): boolean {
-  return state.totalCards > 0;
 }
 
 function Stat({ n, label, accent }: { n: number; label: string; accent: string }) {

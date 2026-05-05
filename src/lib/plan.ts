@@ -1,65 +1,43 @@
-import type { PlanPhase, StudyPlan } from './db';
+import type { StudyPlan } from './db';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MS_PER_WEEK = 7 * MS_PER_DAY;
 
-export const DEFAULT_GOAL_LABEL = '호주 워홀';
-
 export function buildDefaultPlan(
-  departureDate: Date,
   startedAt: number = Date.now(),
-  goalLabel: string = DEFAULT_GOAL_LABEL,
+  goalLabel: string = '',
+  targetDate?: number,
 ): StudyPlan {
-  const totalWeeks = Math.max(
-    8,
-    Math.floor((departureDate.getTime() - startedAt) / MS_PER_WEEK),
-  );
-
-  // 4M / 5M / 3M ≈ 17 / 22 / 13 weeks for a 52-week timeline; scale proportionally
-  const survivalEnd = Math.floor(totalWeeks * (17 / 52));
-  const jobEnd = Math.floor(totalWeeks * (39 / 52));
-
-  const phases: PlanPhase[] = [
-    {
-      name: 'survival',
-      startWeek: 0,
-      endWeek: survivalEnd,
-      deckIds: ['cafe', 'hostel', 'daily'],
-      targetWordsPerDay: 15,
-    },
-    {
-      name: 'job-specific',
-      startWeek: survivalEnd,
-      endWeek: jobEnd,
-      deckIds: ['farm', 'sharehouse'],
-      targetWordsPerDay: 12,
-    },
-    {
-      name: 'social',
-      startWeek: jobEnd,
-      endWeek: totalWeeks,
-      deckIds: ['admin', 'slang'],
-      targetWordsPerDay: 8,
-    },
-  ];
-
-  return {
+  const plan: StudyPlan = {
     id: 'main',
     goalLabel,
-    departureDate: departureDate.getTime(),
     startedAt,
-    phases,
   };
+  if (typeof targetDate === 'number') plan.targetDate = targetDate;
+  return plan;
 }
 
-export function daysUntil(timestamp: number): number {
+/** 목표일까지 남은 일수. targetDate 없으면 null. */
+export function daysUntil(timestamp: number | undefined): number | null {
+  if (typeof timestamp !== 'number') return null;
   return Math.max(0, Math.ceil((timestamp - Date.now()) / MS_PER_DAY));
 }
 
-export function currentPhase(plan: StudyPlan): PlanPhase {
-  const elapsedWeeks = (Date.now() - plan.startedAt) / MS_PER_WEEK;
-  return (
-    plan.phases.find((p) => elapsedWeeks >= p.startWeek && elapsedWeeks < p.endWeek) ??
-    plan.phases[plan.phases.length - 1]
+/** 학습 시작일 이후 경과 일수 (1일차부터 시작하도록 +1). */
+export function daysSinceStart(startedAt: number): number {
+  return Math.max(1, Math.floor((Date.now() - startedAt) / MS_PER_DAY) + 1);
+}
+
+/** 학습 시작일 이후 경과 주차 (1주차부터). */
+export function weekSinceStart(startedAt: number): number {
+  return Math.max(1, Math.floor((Date.now() - startedAt) / MS_PER_WEEK) + 1);
+}
+
+/** 목표일까지 총 주차 수. targetDate 없으면 null. */
+export function totalWeeksToTarget(plan: StudyPlan): number | null {
+  if (typeof plan.targetDate !== 'number') return null;
+  return Math.max(
+    1,
+    Math.ceil((plan.targetDate - plan.startedAt) / MS_PER_WEEK),
   );
 }

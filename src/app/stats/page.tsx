@@ -2,21 +2,18 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Rating } from 'ts-fsrs';
+import { Rating, State } from 'ts-fsrs';
 import { BackIcon, IconButton } from '@/components/IconButton';
 import { bootstrap } from '@/lib/bootstrap';
-import { getDb, type ReviewLog, type StudyPlan, type PhaseName } from '@/lib/db';
-import { currentPhase } from '@/lib/plan';
+import { getDb, type ReviewCard, type ReviewLog } from '@/lib/db';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-interface PhaseStat {
-  name: PhaseName;
-  label: string;
-  done: number;
-  total: number;
-  color: string;
-  current: boolean;
+interface CardBreakdown {
+  learning: number;
+  review: number;
+  mastered: number;
+  skipped: number;
 }
 
 interface MissedWord {
@@ -30,21 +27,11 @@ interface StatsState {
   weekTotalUnique: number;
   weekDeltaPct: number | null;
   daysSeries: number[];
-  phases: PhaseStat[];
+  breakdown: CardBreakdown;
+  totalCards: number;
+  totalWords: number;
   missed: MissedWord[];
 }
-
-const PHASE_LABEL: Record<PhaseName, string> = {
-  survival: '입문 단어',
-  'job-specific': '중급 단어',
-  social: '고급 / 시험',
-};
-
-const PHASE_COLOR: Record<PhaseName, string> = {
-  survival: 'var(--vv-amber)',
-  'job-specific': 'var(--vv-eucalyptus)',
-  social: 'var(--vv-sky)',
-};
 
 function dayBucket(ts: number, refStart: number): number {
   return Math.floor((ts - refStart) / MS_PER_DAY);
@@ -60,9 +47,22 @@ function uniqueCount(logs: ReviewLog[]): number {
   return new Set(logs.map((l) => l.cardId)).size;
 }
 
-async function loadStats(plan: StudyPlan): Promise<StatsState> {
+function summarize(cards: ReviewCard[]): CardBreakdown {
+  const out: CardBreakdown = { learning: 0, review: 0, mastered: 0, skipped: 0 };
+  for (const c of cards) {
+    if (c.disposition === 'mastered') out.mastered += 1;
+    else if (c.disposition === 'skipped') out.skipped += 1;
+    else if (c.state === State.Review) out.review += 1;
+    else out.learning += 1;
+  }
+  return out;
+}
+
+async function loadStats(): Promise<StatsState> {
   const db = getDb();
   const allLogs = await db.logs.toArray();
+  const allCards = await db.cards.toArray();
+  const totalWords = await db.words.count();
 
   const todayStart = startOfDay(Date.now());
   const weekStart = todayStart - 6 * MS_PER_DAY;
@@ -74,7 +74,8 @@ async function loadStats(plan: StudyPlan): Promise<StatsState> {
 
   const weekTotalUnique = uniqueCount(thisWeek);
   const prevWeekUnique = uniqueCount(prevWeek);
-  const weekDeltaPct = prevWeekUnique === 0 ? null : Math.round(((weekTotalUnique - prevWeekUnique) / prevWeekUnique) * 100);
+  const weekDeltaPct =
+    prevWeekUnique === 0 ? null : Math.round(((weekTotalUnique - prevWeekUnique) / prevWeekUnique) * 100);
 
   const daysSeries = Array(14).fill(0) as number[];
   for (const l of allLogs) {
@@ -83,30 +84,7 @@ async function loadStats(plan: StudyPlan): Promise<StatsState> {
     if (idx >= 0 && idx < 14) daysSeries[idx] += 1;
   }
 
-  // phase stats
-  const decks = await db.decks.toArray();
-  const deckMap = new Map(decks.map((d) => [d.id, d]));
-  const cardIds = new Set((await db.cards.toArray()).map((c) => c.id));
-  const cur = currentPhase(plan);
-
-  const phases: PhaseStat[] = plan.phases.map((p) => {
-    let total = 0;
-    let done = 0;
-    for (const deckId of p.deckIds) {
-      const deck = deckMap.get(deckId);
-      if (!deck) continue;
-      total += deck.wordIds.length;
-      for (const wid of deck.wordIds) if (cardIds.has(wid)) done += 1;
-    }
-    return {
-      name: p.name,
-      label: PHASE_LABEL[p.name],
-      done,
-      total,
-      color: PHASE_COLOR[p.name],
-      current: p.name === cur.name,
-    };
-  });
+  const breakdown = summarize(allCards);
 
   // missed words
   const missCount = new Map<string, number>();
@@ -122,7 +100,15 @@ async function loadStats(plan: StudyPlan): Promise<StatsState> {
     if (word) missed.push({ id, term: word.term, meaningKo: word.meaningKo, miss });
   }
 
-  return { weekTotalUnique, weekDeltaPct, daysSeries, phases, missed };
+  return {
+    weekTotalUnique,
+    weekDeltaPct,
+    daysSeries,
+    breakdown,
+    totalCards: allCards.length,
+    totalWords,
+    missed,
+  };
 }
 
 export default function StatsPage() {
@@ -133,8 +119,8 @@ export default function StatsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const { plan } = await bootstrap();
-        const stats = await loadStats(plan);
+        await bootstrap();
+        const stats = await loadStats();
         if (!cancelled) setState(stats);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -163,6 +149,15 @@ export default function StatsPage() {
 
   const max = Math.max(1, ...state.daysSeries);
   const labels = ['월', '화', '수', '목', '금', '토', '일'];
+  const newCount = Math.max(0, state.totalWords - state.totalCards);
+  const breakdownRows: { key: keyof CardBreakdown | 'new'; label: string; color: string; n: number }[] = [
+    { key: 'new', label: '새 단어', color: 'var(--vv-line-2)', n: newCount },
+    { key: 'learning', label: '학습 중', color: 'var(--vv-eucalyptus)', n: state.breakdown.learning },
+    { key: 'review', label: '복습', color: 'var(--vv-amber)', n: state.breakdown.review },
+    { key: 'mastered', label: '마스터', color: 'var(--vv-sky)', n: state.breakdown.mastered },
+    { key: 'skipped', label: '제외', color: 'var(--vv-coral)', n: state.breakdown.skipped },
+  ];
+  const breakdownTotal = breakdownRows.reduce((a, r) => a + r.n, 0);
 
   return (
     <main
@@ -280,7 +275,7 @@ export default function StatsPage() {
         </div>
       </div>
 
-      {/* phase progress */}
+      {/* card breakdown */}
       <div style={{ padding: '20px 24px 0' }}>
         <p
           className="vv-stamp"
@@ -291,68 +286,71 @@ export default function StatsPage() {
             marginBottom: 12,
           }}
         >
-          단계별 진행
+          단어 상태
         </p>
-        {state.phases.map((p) => (
-          <div
-            key={p.name}
-            style={{
-              background: 'var(--vv-surface)',
-              borderRadius: 14,
-              padding: '14px 16px',
-              marginBottom: 8,
-              boxShadow: 'var(--vv-shadow-card)',
-              border: p.current ? `1.5px solid ${p.color}` : '1.5px solid transparent',
-            }}
-          >
+        <div
+          style={{
+            background: 'var(--vv-surface)',
+            borderRadius: 'var(--vv-radius-sm)',
+            padding: 16,
+            boxShadow: 'var(--vv-shadow-card)',
+          }}
+        >
+          {/* stacked bar */}
+          {breakdownTotal > 0 && (
             <div
               className="flex"
-              style={{ justifyContent: 'space-between', alignItems: 'baseline' }}
-            >
-              <div className="flex" style={{ alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{p.label}</span>
-                {p.current && (
-                  <span
-                    className="vv-stamp"
-                    style={{
-                      fontSize: 9,
-                      color: p.color,
-                      padding: '1px 6px',
-                      border: `1px solid ${p.color}`,
-                      borderRadius: 3,
-                    }}
-                  >
-                    NOW
-                  </span>
-                )}
-              </div>
-              <span
-                className="vv-en vv-num"
-                style={{ fontSize: 11, color: 'var(--vv-ink-3)' }}
-              >
-                <b style={{ color: 'var(--vv-ink)' }}>{p.done}</b>/{p.total}
-              </span>
-            </div>
-            <div
               style={{
-                marginTop: 8,
-                height: 5,
+                height: 8,
                 borderRadius: 999,
                 background: 'var(--vv-line)',
                 overflow: 'hidden',
+                marginBottom: 14,
               }}
             >
-              <div
-                style={{
-                  width: `${p.total > 0 ? (p.done / p.total) * 100 : 0}%`,
-                  height: '100%',
-                  background: p.color,
-                  borderRadius: 999,
-                }}
-              />
+              {breakdownRows.map((r) =>
+                r.n > 0 ? (
+                  <div
+                    key={r.key}
+                    style={{
+                      width: `${(r.n / breakdownTotal) * 100}%`,
+                      background: r.color,
+                      height: '100%',
+                    }}
+                    title={`${r.label} ${r.n}`}
+                  />
+                ) : null,
+              )}
             </div>
+          )}
+          {/* legend */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {breakdownRows.map((r) => (
+              <div
+                key={r.key}
+                className="flex"
+                style={{ alignItems: 'center', gap: 10, fontSize: 13 }}
+              >
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 3,
+                    background: r.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ flex: 1, color: 'var(--vv-ink-2)' }}>{r.label}</span>
+                <span
+                  className="vv-en vv-num"
+                  style={{ fontWeight: 700, color: 'var(--vv-ink)' }}
+                >
+                  {r.n}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
       {/* missed words */}

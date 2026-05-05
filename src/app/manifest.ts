@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'VocaVoca — 호주 워홀 영단어',
+    name: 'VocaVoca — 시나리오 영단어',
     short_name: 'VocaVoca',
-    description: '호주 워킹홀리데이를 위한 시나리오 기반 영단어 암기 PWA',
+    description: '시나리오 기반 영단어 암기 PWA. 사용자가 직접 목표·일정·콘텐츠를 정해 쓰는 범용 학습 앱.',
     start_url: '/',
     display: 'standalone',
     background_color: '#FBF7F0',

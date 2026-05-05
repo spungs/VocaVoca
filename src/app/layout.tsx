@@ -15,8 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'VocaVoca — 호주 워홀 영단어',
-  description: '호주 워킹홀리데이를 위한 시나리오 기반 영단어 암기 PWA',
+  title: 'VocaVoca — 시나리오 영단어',
+  description: '시나리오 기반 영단어 암기 PWA. 사용자가 직접 목표·일정·콘텐츠를 정해 쓰는 범용 학습 앱.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
