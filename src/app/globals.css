@@ -120,6 +120,12 @@ body {
 }
 .vv-card-in { animation: vv-card-in 320ms cubic-bezier(.2, .7, .2, 1) both; }
 
+/* sheet fade-in */
+@keyframes vv-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* streak flame flicker */
 @keyframes vv-flicker {
   0%, 100% { transform: rotate(-1deg) scale(1); }

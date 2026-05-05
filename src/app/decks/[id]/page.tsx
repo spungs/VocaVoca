@@ -3,9 +3,17 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { State } from 'ts-fsrs';
 import { BackIcon, IconButton } from '@/components/IconButton';
 import { bootstrap } from '@/lib/bootstrap';
-import { getDb, type Deck, type Word } from '@/lib/db';
+import {
+  getDb,
+  type Deck,
+  type Disposition,
+  type ReviewCard,
+  type Word,
+} from '@/lib/db';
+import { setDisposition } from '@/lib/disposition';
 
 const DECK_ICON: Record<string, string> = {
   cafe: '☕',
@@ -20,7 +28,28 @@ const DECK_ICON: Record<string, string> = {
 interface DeckPageState {
   deck: Deck;
   words: Word[];
-  learnedIds: Set<string>;
+  cardMap: Map<string, ReviewCard>;
+}
+
+interface DotInfo {
+  color: string;
+  label: string;
+}
+
+function dotFor(card: ReviewCard | undefined): DotInfo {
+  if (!card) return { color: 'var(--vv-line-2)', label: '새 단어' };
+  if (card.disposition === 'mastered') return { color: 'var(--vv-sky)', label: '다 외움' };
+  if (card.disposition === 'skipped') return { color: 'var(--vv-coral)', label: '제외' };
+  return { color: 'var(--vv-eucalyptus)', label: '학습 중' };
+}
+
+function statusText(card: ReviewCard | undefined): string {
+  if (!card) return '아직 학습 시작 전';
+  if (card.disposition === 'mastered') return '다 외움 (큐에서 제외됨)';
+  if (card.disposition === 'skipped') return '제외됨 (큐에서 제외됨)';
+  if (card.state === State.Learning || card.state === State.Relearning) return '학습 중';
+  if (card.state === State.Review) return `복습 중 · ${Math.round(card.stability)}일 안정성`;
+  return '학습 중';
 }
 
 export default function DeckPage() {
@@ -28,6 +57,7 @@ export default function DeckPage() {
   const deckId = params?.id;
   const [state, setState] = useState<DeckPageState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!deckId) return;
@@ -44,8 +74,8 @@ export default function DeckPage() {
         const words = await db.words.where('id').anyOf(deck.wordIds).toArray();
         words.sort((a, b) => b.frequency - a.frequency);
         const cards = await db.cards.where('id').anyOf(deck.wordIds).toArray();
-        const learnedIds = new Set(cards.map((c) => c.id));
-        if (!cancelled) setState({ deck, words, learnedIds });
+        const cardMap = new Map(cards.map((c) => [c.id, c]));
+        if (!cancelled) setState({ deck, words, cardMap });
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
@@ -54,6 +84,20 @@ export default function DeckPage() {
       cancelled = true;
     };
   }, [deckId]);
+
+  const handleSetDisposition = async (
+    wordId: string,
+    disposition: Disposition | null,
+  ) => {
+    const next = await setDisposition(wordId, disposition);
+    setState((prev) => {
+      if (!prev) return prev;
+      const newMap = new Map(prev.cardMap);
+      newMap.set(wordId, next);
+      return { ...prev, cardMap: newMap };
+    });
+    setSelectedWordId(null);
+  };
 
   if (error) {
     return (
@@ -71,11 +115,13 @@ export default function DeckPage() {
     );
   }
 
-  const { deck, words, learnedIds } = state;
+  const { deck, words, cardMap } = state;
   const total = words.length;
-  const learned = learnedIds.size;
-  const progress = total > 0 ? learned / total : 0;
+  const activeCount = [...cardMap.values()].filter((c) => !c.disposition).length;
+  const progress = total > 0 ? activeCount / total : 0;
   const icon = DECK_ICON[deck.id] ?? '📘';
+  const selectedWord = selectedWordId ? words.find((w) => w.id === selectedWordId) : null;
+  const selectedCard = selectedWordId ? cardMap.get(selectedWordId) : undefined;
 
   return (
     <main
@@ -145,7 +191,7 @@ export default function DeckPage() {
         >
           <span>
             <span className="vv-en vv-num" style={{ color: 'var(--vv-ink)', fontWeight: 700 }}>
-              {learned}
+              {activeCount}
             </span>
             <span className="vv-en vv-num">/{total}</span> 학습 시작 ·{' '}
             <span className="vv-num">{Math.round(progress * 100)}%</span>
@@ -198,17 +244,22 @@ export default function DeckPage() {
 
       {/* word list */}
       <div style={{ padding: '24px 24px 0' }}>
-        <p
-          className="vv-stamp"
+        <div
+          className="flex"
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'var(--vv-ink-3)',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
             marginBottom: 10,
           }}
         >
-          단어 {total}개
-        </p>
+          <p
+            className="vv-stamp"
+            style={{ fontSize: 11, fontWeight: 700, color: 'var(--vv-ink-3)' }}
+          >
+            단어 {total}개
+          </p>
+          <span style={{ fontSize: 11, color: 'var(--vv-ink-3)' }}>탭하여 관리</span>
+        </div>
         <div
           style={{
             background: 'var(--vv-surface)',
@@ -218,18 +269,30 @@ export default function DeckPage() {
           }}
         >
           {words.map((w, i) => {
-            const isLearned = learnedIds.has(w.id);
+            const card = cardMap.get(w.id);
+            const dot = dotFor(card);
             const isAussie = w.tags.includes('aussie');
+            const isSkipped = card?.disposition === 'skipped';
             return (
-              <div
+              <button
                 key={w.id}
-                className="flex"
+                type="button"
+                onClick={() => setSelectedWordId(w.id)}
+                className="vv-press flex"
                 style={{
+                  width: '100%',
                   alignItems: 'flex-start',
                   gap: 10,
                   padding: '12px 14px',
+                  border: 'none',
+                  background: 'transparent',
                   borderBottom: i < words.length - 1 ? '1px solid var(--vv-line)' : 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: 'inherit',
+                  opacity: isSkipped ? 0.55 : 1,
                 }}
+                aria-label={`${w.term} — ${dot.label}`}
               >
                 <div
                   style={{
@@ -238,9 +301,9 @@ export default function DeckPage() {
                     borderRadius: '50%',
                     marginTop: 8,
                     flexShrink: 0,
-                    background: isLearned ? 'var(--vv-eucalyptus)' : 'var(--vv-line-2)',
+                    background: dot.color,
                   }}
-                  title={isLearned ? '학습 시작됨' : '새 단어'}
+                  title={dot.label}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
@@ -249,7 +312,11 @@ export default function DeckPage() {
                   >
                     <span
                       className="vv-en"
-                      style={{ fontSize: 14, fontWeight: 700 }}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        textDecoration: isSkipped ? 'line-through' : 'none',
+                      }}
                     >
                       {w.term}
                     </span>
@@ -290,11 +357,223 @@ export default function DeckPage() {
                     AU
                   </span>
                 )}
-              </div>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--vv-ink-3)"
+                  strokeWidth="2.2"
+                  style={{ flexShrink: 0, marginTop: 4 }}
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
             );
           })}
         </div>
       </div>
+
+      {selectedWord && (
+        <WordSheet
+          word={selectedWord}
+          card={selectedCard}
+          onClose={() => setSelectedWordId(null)}
+          onSetDisposition={handleSetDisposition}
+        />
+      )}
     </main>
+  );
+}
+
+function WordSheet({
+  word,
+  card,
+  onClose,
+  onSetDisposition,
+}: {
+  word: Word;
+  card: ReviewCard | undefined;
+  onClose: () => void;
+  onSetDisposition: (wordId: string, disposition: Disposition | null) => void;
+}) {
+  const dot = dotFor(card);
+  const isMastered = card?.disposition === 'mastered';
+  const isSkipped = card?.disposition === 'skipped';
+  const isDisposed = isMastered || isSkipped;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        animation: 'vv-fade-in 200ms ease',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="vv-card-in"
+        style={{
+          width: '100%',
+          maxWidth: 448,
+          background: 'var(--vv-surface)',
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          padding: '12px 22px 28px',
+          boxShadow: 'var(--vv-shadow-pop)',
+        }}
+      >
+        {/* drag handle */}
+        <div
+          style={{
+            width: 36,
+            height: 4,
+            borderRadius: 2,
+            background: 'var(--vv-line-2)',
+            margin: '0 auto 18px',
+          }}
+        />
+
+        {/* word info */}
+        <div style={{ paddingBottom: 14, borderBottom: '1px solid var(--vv-line)' }}>
+          <p
+            className="vv-en"
+            style={{
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              textDecoration: isSkipped ? 'line-through' : 'none',
+            }}
+          >
+            {word.term}
+          </p>
+          {word.ipa && (
+            <p
+              className="vv-mono"
+              style={{ fontSize: 13, color: 'var(--vv-ink-2)', marginTop: 4 }}
+            >
+              {word.ipa}
+            </p>
+          )}
+          <p style={{ fontSize: 14, color: 'var(--vv-ink-2)', marginTop: 8, lineHeight: 1.5 }}>
+            {word.meaningKo}
+          </p>
+        </div>
+
+        {/* status */}
+        <div
+          className="flex"
+          style={{
+            alignItems: 'center',
+            gap: 8,
+            padding: '14px 0',
+            fontSize: 12,
+            color: 'var(--vv-ink-3)',
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: dot.color,
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ color: 'var(--vv-ink-2)', fontWeight: 600 }}>{statusText(card)}</span>
+        </div>
+
+        {/* actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {isDisposed ? (
+            <button
+              type="button"
+              onClick={() => onSetDisposition(word.id, null)}
+              className="vv-press"
+              style={{
+                padding: '14px 16px',
+                border: 'none',
+                background: 'var(--vv-amber)',
+                color: 'white',
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              ↻ 다시 학습 큐에 넣기
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onSetDisposition(word.id, 'mastered')}
+                className="vv-press flex"
+                style={{
+                  padding: '14px 16px',
+                  border: '1.5px solid var(--vv-sky)',
+                  background: 'transparent',
+                  color: 'var(--vv-sky)',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>✓</span>
+                <span>다 외웠어요 (안 보기)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetDisposition(word.id, 'skipped')}
+                className="vv-press flex"
+                style={{
+                  padding: '14px 16px',
+                  border: '1.5px solid var(--vv-coral)',
+                  background: 'transparent',
+                  color: 'var(--vv-coral)',
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>✗</span>
+                <span>이 단어 제외</span>
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="vv-press"
+            style={{
+              padding: '14px 16px',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--vv-ink-3)',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginTop: 4,
+            }}
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -53,13 +53,21 @@ export async function rateCard(
   return next;
 }
 
-/** Cards whose due date has passed. */
+/** Cards whose due date has passed. disposition이 설정된 카드는 제외. */
 export async function dueCards(limit: number): Promise<ReviewCard[]> {
   const db = getDb();
-  return db.cards.where('due').belowOrEqual(new Date()).limit(limit).toArray();
+  return db.cards
+    .where('due')
+    .belowOrEqual(new Date())
+    .filter((c) => !c.disposition)
+    .limit(limit)
+    .toArray();
 }
 
-/** Words that don't yet have a ReviewCard, ordered by frequency desc, limited. */
+/**
+ * Words that don't yet have a ReviewCard, ordered by frequency desc, limited.
+ * 카드가 있는 단어는 모두 제외 (disposition 단어 포함 — 일단 처분된 단어는 신규 큐에 다시 안 들어감).
+ */
 export async function newWordIds(limit: number): Promise<string[]> {
   const db = getDb();
   const cardIds = new Set((await db.cards.toCollection().primaryKeys()) as string[]);

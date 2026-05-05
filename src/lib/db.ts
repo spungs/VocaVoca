@@ -23,6 +23,8 @@ export interface Deck {
   wordIds: string[];
 }
 
+export type Disposition = 'mastered' | 'skipped';
+
 export interface ReviewCard {
   id: string;
   due: Date;
@@ -37,6 +39,8 @@ export interface ReviewCard {
   firstSeenAt: number;
   lastReviewedAt?: number;
   totalReviews: number;
+  /** 사용자가 큐에서 제외한 처분 상태. 미정의 = 정상 학습. */
+  disposition?: Disposition;
 }
 
 export interface ReviewLog {
