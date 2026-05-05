@@ -1,5 +1,5 @@
 import { getDb, type StudyPlan, type UserSettings } from './db';
-import { buildDefaultPlan } from './plan';
+import { buildDefaultPlan, DEFAULT_GOAL_LABEL } from './plan';
 import { seedIfEmpty } from './seed';
 
 export interface BootstrapResult {
@@ -21,6 +21,9 @@ export async function bootstrap(): Promise<BootstrapResult> {
   if (!plan) {
     const defaultDeparture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     plan = buildDefaultPlan(defaultDeparture);
+    await db.plans.put(plan);
+  } else if (!plan.goalLabel) {
+    plan = { ...plan, goalLabel: DEFAULT_GOAL_LABEL };
     await db.plans.put(plan);
   }
 

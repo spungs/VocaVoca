@@ -60,10 +60,18 @@ export default function SettingsPage() {
     if (!plan) return;
     const next = new Date(dateStr);
     if (Number.isNaN(next.getTime())) return;
-    const rebuilt = buildDefaultPlan(next, plan.startedAt);
+    const rebuilt = buildDefaultPlan(next, plan.startedAt, plan.goalLabel);
     setPlan(rebuilt);
     const db = getDb();
     await db.plans.put(rebuilt);
+  };
+
+  const updateGoalLabel = async (label: string) => {
+    if (!plan) return;
+    const next = { ...plan, goalLabel: label };
+    setPlan(next);
+    const db = getDb();
+    await db.plans.put(next);
   };
 
   const resetProgress = async () => {
@@ -160,10 +168,34 @@ export default function SettingsPage() {
         </FieldRow>
       </Section>
 
-      {/* 목표일 */}
-      <Section label="목표일">
+      {/* 목표 */}
+      <Section label="목표">
         <FieldRow
-          title="호주 출국일"
+          title="목표 이름"
+          sub="홈 화면에 표시됩니다. 예: 호주 워홀, TOEIC 800점, 어학연수"
+        >
+          <input
+            type="text"
+            value={plan.goalLabel}
+            maxLength={30}
+            placeholder="목표를 입력하세요"
+            onChange={(e) => updateGoalLabel(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: '1px solid var(--vv-line-2)',
+              background: 'var(--vv-bg)',
+              color: 'var(--vv-ink)',
+              fontSize: 14,
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+        </FieldRow>
+        <Divider />
+        <FieldRow
+          title="목표일"
           sub={`현재 D−${dDay}`}
         >
           <input
@@ -179,6 +211,7 @@ export default function SettingsPage() {
               color: 'var(--vv-ink)',
               fontSize: 14,
               fontFamily: 'inherit',
+              boxSizing: 'border-box',
             }}
           />
         </FieldRow>

@@ -61,6 +61,7 @@ export interface PlanPhase {
 
 export interface StudyPlan {
   id: 'main';
+  goalLabel: string;
   departureDate: number;
   startedAt: number;
   phases: PlanPhase[];

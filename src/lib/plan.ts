@@ -3,7 +3,13 @@ import type { PlanPhase, StudyPlan } from './db';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MS_PER_WEEK = 7 * MS_PER_DAY;
 
-export function buildDefaultPlan(departureDate: Date, startedAt: number = Date.now()): StudyPlan {
+export const DEFAULT_GOAL_LABEL = '호주 워홀';
+
+export function buildDefaultPlan(
+  departureDate: Date,
+  startedAt: number = Date.now(),
+  goalLabel: string = DEFAULT_GOAL_LABEL,
+): StudyPlan {
   const totalWeeks = Math.max(
     8,
     Math.floor((departureDate.getTime() - startedAt) / MS_PER_WEEK),
@@ -39,6 +45,7 @@ export function buildDefaultPlan(departureDate: Date, startedAt: number = Date.n
 
   return {
     id: 'main',
+    goalLabel,
     departureDate: departureDate.getTime(),
     startedAt,
     phases,

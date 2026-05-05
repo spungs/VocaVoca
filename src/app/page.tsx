@@ -180,7 +180,7 @@ export default function HomePage() {
               className="vv-stamp"
               style={{ fontSize: 11, fontWeight: 600, color: 'var(--vv-ink-3)' }}
             >
-              호주 출국까지
+              목표까지
             </p>
             <div className="flex" style={{ alignItems: 'baseline', gap: 4, marginTop: 2 }}>
               <span
@@ -191,7 +191,8 @@ export default function HomePage() {
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--vv-ink-2)', marginTop: 6 }}>
-              {PHASE_LABEL[phase.name]} · 주{' '}
+              <span style={{ fontWeight: 600 }}>{state.plan.goalLabel}</span>
+              <span style={{ color: 'var(--vv-ink-3)' }}> · {PHASE_LABEL[phase.name]} · 주 </span>
               <span className="vv-num" style={{ fontWeight: 600 }}>
                 {state.currentWeek}
               </span>
