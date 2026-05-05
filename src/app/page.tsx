@@ -466,8 +466,9 @@ function DeckRow({ deck, learned, idx }: { deck: Deck; learned: number; idx: num
   const c = phaseColors[idx % phaseColors.length];
   const total = deck.wordIds.length;
   return (
-    <div
-      className="flex"
+    <Link
+      href={`/study?deck=${deck.id}`}
+      className="vv-press flex"
       style={{
         alignItems: 'center',
         gap: 14,
@@ -476,6 +477,8 @@ function DeckRow({ deck, learned, idx }: { deck: Deck; learned: number; idx: num
         borderRadius: 'var(--vv-radius-sm)',
         boxShadow: 'var(--vv-shadow-card)',
         position: 'relative',
+        textDecoration: 'none',
+        color: 'inherit',
       }}
     >
       <div
@@ -543,6 +546,6 @@ function DeckRow({ deck, learned, idx }: { deck: Deck; learned: number; idx: num
           }}
         />
       </div>
-    </div>
+    </Link>
   );
 }

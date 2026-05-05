@@ -53,6 +53,7 @@ export default function StudyPage() {
 function StudyPageInner() {
   const searchParams = useSearchParams();
   const idsParam = searchParams.get('ids');
+  const deckParam = searchParams.get('deck');
   const reviewIds = idsParam ? idsParam.split(',').filter(Boolean) : null;
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -75,6 +76,17 @@ function StudyPageInner() {
             if (!word) continue;
             const card = await ensureCard(id);
             items.push({ word, card });
+          }
+        } else if (deckParam) {
+          // 덱 모드: 그 덱의 모든 단어 (frequency 높은 순)
+          const deck = await db.decks.get(deckParam);
+          if (deck) {
+            const words = await db.words.where('id').anyOf(deck.wordIds).toArray();
+            words.sort((a, b) => b.frequency - a.frequency);
+            for (const word of words) {
+              const card = await ensureCard(word.id);
+              items.push({ word, card });
+            }
           }
         } else {
           // 일반 학습 모드: due + new
@@ -104,7 +116,7 @@ function StudyPageInner() {
     return () => {
       cancelled = true;
     };
-    // reviewIds가 URL에서 안정적이라 effect 1회 실행 (이 페이지는 mount 시 큐 빌드)
+    // reviewIds·deckParam가 URL에서 안정적이라 effect 1회 실행
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
