@@ -4,6 +4,11 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type StudyPlan, type UserSettings } from '@/lib/db';
+import {
+  getPermissionState,
+  requestNotificationPermission,
+  type NotificationPermissionState,
+} from '@/lib/notify';
 import { buildDefaultPlan, daysUntil } from '@/lib/plan';
 import {
   ACCENT_MAP,
@@ -44,6 +49,7 @@ export default function SettingsPage() {
   const [plan, setPlan] = useState<StudyPlan | null>(null);
   const [theme, setThemeState] = useState<Theme>(() => getStoredTheme());
   const [accent, setAccentState] = useState<Accent>(() => getStoredAccent());
+  const [notifPerm, setNotifPerm] = useState<NotificationPermissionState>('default');
   const [error, setError] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -56,6 +62,7 @@ export default function SettingsPage() {
         if (!cancelled) {
           setSettings(result.settings);
           setPlan(result.plan);
+          setNotifPerm(getPermissionState());
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -65,6 +72,11 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  const requestNotif = async () => {
+    const result = await requestNotificationPermission();
+    setNotifPerm(result);
+  };
 
   const updateTheme = (t: Theme) => {
     setThemeState(t);
@@ -241,6 +253,16 @@ export default function SettingsPage() {
               boxSizing: 'border-box',
             }}
           />
+        </FieldRow>
+      </Section>
+
+      {/* 알림 */}
+      <Section label="알림">
+        <FieldRow
+          title="학습 알림"
+          sub="앱 진입 시 그날 학습 분량을 1회 알려줍니다"
+        >
+          <NotifRow state={notifPerm} onRequest={requestNotif} />
         </FieldRow>
       </Section>
 
@@ -421,6 +443,70 @@ function SegmentedNumber({
         );
       })}
     </div>
+  );
+}
+
+function NotifRow({
+  state,
+  onRequest,
+}: {
+  state: NotificationPermissionState;
+  onRequest: () => void;
+}) {
+  if (state === 'unsupported') {
+    return (
+      <p style={{ fontSize: 12, color: 'var(--vv-ink-3)' }}>
+        이 브라우저는 알림을 지원하지 않아요. iOS는 홈 화면에 추가한 PWA에서만 알림이
+        활성화됩니다.
+      </p>
+    );
+  }
+  if (state === 'granted') {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 12px',
+          background: 'var(--vv-eucalyptus-soft)',
+          color: 'var(--vv-eucalyptus)',
+          borderRadius: 10,
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        <span>✓</span>
+        <span>알림 켜짐</span>
+      </div>
+    );
+  }
+  if (state === 'denied') {
+    return (
+      <p style={{ fontSize: 12, color: 'var(--vv-ink-3)', lineHeight: 1.5 }}>
+        브라우저에서 알림이 차단됨. 주소창의 자물쇠 아이콘 → 사이트 설정에서 알림을
+        허용으로 바꿔주세요.
+      </p>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onRequest}
+      className="vv-press"
+      style={{
+        padding: '10px 14px',
+        border: 'none',
+        background: 'var(--vv-amber)',
+        color: 'white',
+        borderRadius: 10,
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: 'pointer',
+      }}
+    >
+      알림 켜기
+    </button>
   );
 }
 

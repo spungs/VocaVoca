@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type Deck, type StudyPlan, type UserSettings, type PhaseName } from '@/lib/db';
+import { maybeNotifyToday, setBadge } from '@/lib/notify';
 import { currentPhase, daysUntil } from '@/lib/plan';
 import { dueCards, newWordIds } from '@/lib/srs';
 import { computeStreak } from '@/lib/streak';
@@ -76,6 +77,9 @@ export default function HomePage() {
           currentWeek,
           streak,
         });
+        // PWA 배지 + 포그라운드 알림 (홈 진입 시 1회)
+        setBadge(due.length + fresh.length);
+        maybeNotifyToday(due.length, fresh.length);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
