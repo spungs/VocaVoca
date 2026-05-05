@@ -467,7 +467,7 @@ function DeckRow({ deck, learned, idx }: { deck: Deck; learned: number; idx: num
   const total = deck.wordIds.length;
   return (
     <Link
-      href={`/study?deck=${deck.id}`}
+      href={`/decks/${deck.id}`}
       className="vv-press flex"
       style={{
         alignItems: 'center',
