@@ -795,15 +795,44 @@ function VoiceBtn({
   );
 }
 
+// Apple/macOS·iOS 우선 음성 화이트리스트.
+// 디폴트는 보통 가장 오래된 시스템 음성(en-US Alex 등 노인풍)이 잡혀
+// 자연스럽지 않으므로, 알려진 양질 음성 이름을 먼저 매칭.
+const PREFERRED_VOICES: Record<VoiceLang, string[]> = {
+  'en-AU': ['Karen', 'Catherine', 'Lee'],
+  'en-GB': ['Daniel', 'Kate', 'Oliver', 'Serena', 'Arthur'],
+  'en-US': ['Samantha', 'Allison', 'Ava', 'Susan', 'Nicky', 'Joelle'],
+};
+
+function pickVoice(voices: SpeechSynthesisVoice[], lang: VoiceLang): SpeechSynthesisVoice | undefined {
+  const exact = voices.filter((v) => v.lang === lang);
+  // iOS Siri 음성 우선 (가장 자연스러움)
+  const siri = exact.find((v) => /siri/i.test(v.name));
+  if (siri) return siri;
+  // 화이트리스트 이름 우선
+  for (const name of PREFERRED_VOICES[lang]) {
+    const found = exact.find((v) => v.name === name || v.name.startsWith(`${name} `));
+    if (found) return found;
+  }
+  // Enhanced / Premium 음성 우선
+  const enhanced = exact.find((v) => /enhanced|premium/i.test(v.name));
+  if (enhanced) return enhanced;
+  // 정확 매치 첫 번째
+  if (exact.length > 0) return exact[0];
+  // 같은 언어 계열
+  return voices.find((v) => v.lang.startsWith('en'));
+}
+
 function speak(word: Word, lang: VoiceLang) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(word.term);
   const voices = window.speechSynthesis.getVoices();
-  const exact = voices.find((v) => v.lang === lang);
-  const fallback = voices.find((v) => v.lang.startsWith('en'));
-  if (exact) u.voice = exact;
-  else if (fallback) u.voice = fallback;
+  const picked = pickVoice(voices, lang);
+  if (picked) u.voice = picked;
   u.lang = lang;
+  u.volume = 1.0;
+  u.rate = 0.95;
+  u.pitch = 1.0;
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
