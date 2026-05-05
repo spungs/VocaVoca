@@ -1,26 +1,152 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Light — warm cream */
+  --vv-bg: #FBF7F0;
+  --vv-surface: #FFFFFF;
+  --vv-surface-2: #F4EEE2;
+  --vv-ink: #1A1816;
+  --vv-ink-2: #4A453E;
+  --vv-ink-3: #8C8478;
+  --vv-line: #E8DFCD;
+  --vv-line-2: #D8CDB6;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Accents */
+  --vv-amber: #E8743C;
+  --vv-amber-soft: #FCE6D6;
+  --vv-eucalyptus: #5B7553;
+  --vv-eucalyptus-soft: #DDE5D2;
+  --vv-coral: #D9534F;
+  --vv-mustard: #C8943A;
+  --vv-sage: #6B8E5A;
+  --vv-sky: #3F7BA8;
+
+  --vv-radius: 22px;
+  --vv-radius-sm: 14px;
+  --vv-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.04), 0 8px 24px -12px rgba(60, 40, 20, 0.18);
+  --vv-shadow-pop: 0 2px 0 rgba(0, 0, 0, 0.05), 0 18px 40px -16px rgba(60, 40, 20, 0.30);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.vv-light) {
+    --vv-bg: #14110E;
+    --vv-surface: #1F1B16;
+    --vv-surface-2: #28231C;
+    --vv-ink: #F5EFE2;
+    --vv-ink-2: #BFB6A5;
+    --vv-ink-3: #7A7264;
+    --vv-line: #2E2920;
+    --vv-line-2: #3D372C;
+
+    --vv-amber: #F08651;
+    --vv-amber-soft: #3A2418;
+    --vv-eucalyptus: #8FAE82;
+    --vv-eucalyptus-soft: #25301F;
+    --vv-coral: #E26B66;
+    --vv-mustard: #DCA84F;
+    --vv-sage: #8FAE7A;
+    --vv-sky: #6BA0CC;
+    --vv-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+    --vv-shadow-pop: 0 2px 0 rgba(0, 0, 0, 0.4), 0 22px 50px -18px rgba(0, 0, 0, 0.7);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.vv-dark {
+  --vv-bg: #14110E;
+  --vv-surface: #1F1B16;
+  --vv-surface-2: #28231C;
+  --vv-ink: #F5EFE2;
+  --vv-ink-2: #BFB6A5;
+  --vv-ink-3: #7A7264;
+  --vv-line: #2E2920;
+  --vv-line-2: #3D372C;
+  --vv-amber: #F08651;
+  --vv-amber-soft: #3A2418;
+  --vv-eucalyptus: #8FAE82;
+  --vv-eucalyptus-soft: #25301F;
+  --vv-coral: #E26B66;
+  --vv-mustard: #DCA84F;
+  --vv-sage: #8FAE7A;
+  --vv-sky: #6BA0CC;
+  --vv-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+  --vv-shadow-pop: 0 2px 0 rgba(0, 0, 0, 0.4), 0 22px 50px -18px rgba(0, 0, 0, 0.7);
 }
+
+html, body {
+  background: var(--vv-bg);
+  color: var(--vv-ink);
+}
+
+body {
+  font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+.vv-en {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.vv-mono {
+  font-family: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.vv-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* warm hero gradient backdrop */
+.vv-paper {
+  background:
+    radial-gradient(1200px 200px at 80% -20%, var(--vv-amber-soft) 0%, transparent 60%),
+    radial-gradient(900px 180px at 0% 110%, var(--vv-eucalyptus-soft) 0%, transparent 55%),
+    var(--vv-bg);
+}
+
+/* press feedback */
+@keyframes vv-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.97); }
+}
+.vv-press:active { animation: vv-pulse 200ms ease; }
+
+/* card mount-in */
+@keyframes vv-card-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.vv-card-in { animation: vv-card-in 320ms cubic-bezier(.2, .7, .2, 1) both; }
+
+/* streak flame flicker */
+@keyframes vv-flicker {
+  0%, 100% { transform: rotate(-1deg) scale(1); }
+  50% { transform: rotate(1.5deg) scale(1.04); }
+}
+.vv-flicker {
+  animation: vv-flicker 1.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
+  display: inline-block;
+}
+
+/* aussie tag chip */
+.vv-chip-aussie {
+  background: var(--vv-eucalyptus-soft);
+  color: var(--vv-eucalyptus);
+}
+.vv-chip-default {
+  background: var(--vv-surface-2);
+  color: var(--vv-ink-2);
+}
+
+.vv-stamp {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.vv-no-scroll::-webkit-scrollbar { display: none; }
+.vv-no-scroll { scrollbar-width: none; }
