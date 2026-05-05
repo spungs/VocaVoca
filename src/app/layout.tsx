@@ -56,7 +56,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ko" className={`${inter.variable} ${jetbrainsMono.variable} h-full`}>
+    <html
+      lang="ko"
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
