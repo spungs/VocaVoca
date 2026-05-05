@@ -7,6 +7,7 @@ import { Rating, type Grade } from 'ts-fsrs';
 import { BackIcon, CloseIcon, IconButton } from '@/components/IconButton';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type ReviewCard, type Word } from '@/lib/db';
+import { setDisposition } from '@/lib/disposition';
 import { dueCards, ensureCard, newWordIds, rateCard } from '@/lib/srs';
 
 interface QueueItem {
@@ -142,6 +143,27 @@ function StudyPageInner() {
     [queue, index],
   );
 
+  const handleMaster = useCallback(
+    async (durationMs: number) => {
+      const item = queue[index];
+      if (!item) return;
+      // Easy로 간주해 FSRS 진척도 함께 갱신 (un-master 시 데이터 보존)
+      await rateCard(item.card, Rating.Easy, durationMs);
+      await setDisposition(item.card.id, 'mastered');
+      correctRef.current += 1;
+      if (index + 1 >= queue.length) {
+        setDone({
+          learned: queue.length,
+          correct: correctRef.current,
+          total: queue.length,
+        });
+      } else {
+        setIndex((i) => i + 1);
+      }
+    },
+    [queue, index],
+  );
+
   if (error) {
     return (
       <main className="vv-paper flex flex-1 items-center justify-center p-6">
@@ -170,8 +192,17 @@ function StudyPageInner() {
       position={index + 1}
       total={queue.length}
       onRate={handleRate}
+      onMaster={handleMaster}
     />
   );
+}
+
+async function isMasteryCandidate(cardId: string): Promise<boolean> {
+  const db = getDb();
+  const all = await db.logs.where('cardId').equals(cardId).toArray();
+  if (all.length < 3) return false;
+  const last3 = all.slice(-3);
+  return last3.every((l) => l.rating === Rating.Easy);
 }
 
 function CardView({
@@ -179,13 +210,16 @@ function CardView({
   position,
   total,
   onRate,
+  onMaster,
 }: {
   item: QueueItem;
   position: number;
   total: number;
   onRate: (rating: Grade, durationMs: number) => void;
+  onMaster: (durationMs: number) => void;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [isCandidate, setIsCandidate] = useState(false);
   const [drag, setDrag] = useState<{ x: number; y: number; active: boolean; sx: number; sy: number }>({
     x: 0,
     y: 0,
@@ -197,7 +231,19 @@ function CardView({
 
   useEffect(() => {
     shownAtRef.current = Date.now();
-  }, []);
+    let cancelled = false;
+    isMasteryCandidate(item.card.id).then((c) => {
+      if (!cancelled) setIsCandidate(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item.card.id]);
+
+  const handleMasterClick = () => {
+    const start = shownAtRef.current || Date.now();
+    onMaster(Date.now() - start);
+  };
 
   const rate = useCallback(
     (dir: SwipeDir) => {
@@ -499,6 +545,34 @@ function CardView({
           )}
         </div>
       </div>
+
+      {revealed && isCandidate && (
+        <div style={{ padding: '0 20px 10px' }}>
+          <button
+            type="button"
+            onClick={handleMasterClick}
+            className="vv-press flex"
+            style={{
+              width: '100%',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 14px',
+              border: '1px solid var(--vv-eucalyptus)',
+              background: 'var(--vv-eucalyptus-soft)',
+              color: 'var(--vv-eucalyptus)',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+            aria-label="다 외운 단어로 표시"
+          >
+            <span style={{ letterSpacing: '0.1em' }}>✓✓✓</span>
+            <span style={{ flex: 1, textAlign: 'left' }}>잘 외운 것 같아요 — 다 외웠다고 표시할까요?</span>
+            <span style={{ fontSize: 12 }}>완료 →</span>
+          </button>
+        </div>
+      )}
 
       {revealed && (
         <div
