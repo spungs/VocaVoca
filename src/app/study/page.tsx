@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { bootstrap } from '@/lib/bootstrap';
-import { getDb, type ReviewCard, type Word } from '@/lib/db';
+import { getDb, type ReviewCard, type UserSettings, type Word } from '@/lib/db';
 import { dueCards, ensureCard, newWordIds, rateCard } from '@/lib/srs';
 
 interface QueueItem {
@@ -57,6 +57,7 @@ function StudyPageInner() {
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [index, setIndex] = useState(0);
+  const [voice, setVoice] = useState<UserSettings['preferredVoice']>('en-AU');
   const [done, setDone] = useState<{ learned: number; correct: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +94,7 @@ function StudyPageInner() {
         }
 
         if (cancelled) return;
+        setVoice(settings.preferredVoice);
         setQueue(items);
         if (items.length === 0) {
           setDone({ learned: 0, correct: 0, total: 0 });
@@ -156,6 +158,7 @@ function StudyPageInner() {
       item={item}
       position={index + 1}
       total={queue.length}
+      voice={voice}
       onRate={handleRate}
     />
   );
@@ -165,11 +168,13 @@ function CardView({
   item,
   position,
   total,
+  voice,
   onRate,
 }: {
   item: QueueItem;
   position: number;
   total: number;
+  voice: UserSettings['preferredVoice'];
   onRate: (rating: Grade, durationMs: number) => void;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -358,7 +363,7 @@ function CardView({
             <div className="flex" style={{ alignItems: 'center', gap: 10, marginTop: 10 }}>
               <button
                 type="button"
-                onClick={() => speak(item.word)}
+                onClick={() => speak(item.word, voice)}
                 className="vv-press grid place-items-center"
                 style={{
                   width: 32,
@@ -778,12 +783,14 @@ function MiniStat({
   );
 }
 
-function speak(word: Word) {
+function speak(word: Word, preferredLang: UserSettings['preferredVoice'] = 'en-AU') {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(word.term);
   const voices = window.speechSynthesis.getVoices();
-  const auVoice = voices.find((v) => v.lang === 'en-AU');
-  if (auVoice) u.voice = auVoice;
-  u.lang = 'en-AU';
+  const exact = voices.find((v) => v.lang === preferredLang);
+  const fallback = voices.find((v) => v.lang.startsWith('en'));
+  if (exact) u.voice = exact;
+  else if (fallback) u.voice = fallback;
+  u.lang = preferredLang;
   window.speechSynthesis.speak(u);
 }
