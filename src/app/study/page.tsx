@@ -355,47 +355,48 @@ function CardView({
             >
               {item.word.term}
             </p>
-            {item.word.ipa && (
-              <div className="flex" style={{ alignItems: 'center', gap: 10, marginTop: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => speak(item.word)}
-                  className="vv-press grid place-items-center"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    border: 'none',
-                    background: 'var(--vv-amber-soft)',
-                    color: 'var(--vv-amber)',
-                    cursor: 'pointer',
-                  }}
-                  aria-label="발음 듣기"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M11 5L6 9H2v6h4l5 4zM15.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z" />
-                  </svg>
-                </button>
+            <div className="flex" style={{ alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => speak(item.word)}
+                className="vv-press grid place-items-center"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'var(--vv-amber-soft)',
+                  color: 'var(--vv-amber)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                aria-label="발음 듣기"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11 5L6 9H2v6h4l5 4zM15.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z" />
+                </svg>
+              </button>
+              {item.word.ipa && (
                 <span
                   className="vv-mono"
                   style={{ fontSize: 13, color: 'var(--vv-ink-2)' }}
                 >
                   {item.word.ipa}
                 </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: 'var(--vv-ink-3)',
-                    marginLeft: 'auto',
-                    padding: '2px 6px',
-                    border: '1px solid var(--vv-line-2)',
-                    borderRadius: 4,
-                  }}
-                >
-                  en-AU
-                </span>
-              </div>
-            )}
+              )}
+              <span
+                style={{
+                  fontSize: 10,
+                  color: 'var(--vv-ink-3)',
+                  marginLeft: 'auto',
+                  padding: '2px 6px',
+                  border: '1px solid var(--vv-line-2)',
+                  borderRadius: 4,
+                }}
+              >
+                en-AU
+              </span>
+            </div>
           </div>
 
           <div
