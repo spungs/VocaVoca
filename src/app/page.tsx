@@ -11,6 +11,7 @@ interface HomeState {
   plan: StudyPlan;
   settings: UserSettings;
   decks: Deck[];
+  deckProgress: Record<string, number>;
   dueCount: number;
   newCount: number;
   totalCards: number;
@@ -34,11 +35,19 @@ export default function HomePage() {
         const currentWeek = Math.floor(
           (Date.now() - plan.startedAt) / (7 * 24 * 60 * 60 * 1000),
         );
+        const deckProgress: Record<string, number> = {};
+        await Promise.all(
+          decks.map(async (deck) => {
+            const learned = await db.cards.where('id').anyOf(deck.wordIds).count();
+            deckProgress[deck.id] = learned;
+          }),
+        );
         if (cancelled) return;
         setState({
           plan,
           settings,
           decks,
+          deckProgress,
           dueCount: due.length,
           newCount: fresh.length,
           totalCards,
@@ -112,17 +121,21 @@ export default function HomePage() {
       <section>
         <p className="mb-2 text-xs uppercase tracking-widest text-zinc-500">시나리오</p>
         <ul className="space-y-2">
-          {state.decks.map((deck) => (
-            <li
-              key={deck.id}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <p className="text-sm font-medium">{deck.title}</p>
-              <p className="text-xs text-zinc-500">
-                {deck.wordIds.length}개 단어 · 예상 {deck.estimatedHours}시간
-              </p>
-            </li>
-          ))}
+          {state.decks.map((deck) => {
+            const learned = state.deckProgress[deck.id] ?? 0;
+            const total = deck.wordIds.length;
+            return (
+              <li
+                key={deck.id}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                <p className="text-sm font-medium">{deck.title}</p>
+                <p className="text-xs text-zinc-500">
+                  {learned}/{total} 학습됨 · 예상 {deck.estimatedHours}시간
+                </p>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

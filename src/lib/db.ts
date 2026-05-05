@@ -6,7 +6,7 @@ export interface Word {
   term: string;
   ipa?: string;
   meaningKo: string;
-  partOfSpeech?: 'noun' | 'verb' | 'phrase' | 'slang' | 'idiom' | 'adjective';
+  partOfSpeech?: 'noun' | 'verb' | 'phrasal-verb' | 'phrase' | 'slang' | 'idiom' | 'adjective';
   audioUrl?: string;
   imageUrl?: string;
   examples: { en: string; ko: string }[];
