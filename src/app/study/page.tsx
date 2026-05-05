@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Rating, type Grade } from 'ts-fsrs';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type ReviewCard, type Word } from '@/lib/db';
@@ -36,6 +37,24 @@ const RATE_LABEL: Record<SwipeDir, { label: string; sub: string }> = {
 };
 
 export default function StudyPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="vv-paper flex flex-1 items-center justify-center p-6">
+          <p style={{ color: 'var(--vv-ink-3)' }}>불러오는 중…</p>
+        </main>
+      }
+    >
+      <StudyPageInner />
+    </Suspense>
+  );
+}
+
+function StudyPageInner() {
+  const searchParams = useSearchParams();
+  const idsParam = searchParams.get('ids');
+  const reviewIds = idsParam ? idsParam.split(',').filter(Boolean) : null;
+
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState<{ learned: number; correct: number; total: number } | null>(null);
@@ -47,19 +66,32 @@ export default function StudyPage() {
       try {
         const { settings } = await bootstrap();
         const db = getDb();
-        const due = await dueCards(settings.dailyReviewCap);
-        const newIds = await newWordIds(settings.dailyNewCards);
         const items: QueueItem[] = [];
-        for (const card of due) {
-          const word = await db.words.get(card.id);
-          if (word) items.push({ word, card });
+
+        if (reviewIds && reviewIds.length > 0) {
+          // 미니 학습 모드: 지정된 단어만 다시 학습
+          for (const id of reviewIds) {
+            const word = await db.words.get(id);
+            if (!word) continue;
+            const card = await ensureCard(id);
+            items.push({ word, card });
+          }
+        } else {
+          // 일반 학습 모드: due + new
+          const due = await dueCards(settings.dailyReviewCap);
+          const newIds = await newWordIds(settings.dailyNewCards);
+          for (const card of due) {
+            const word = await db.words.get(card.id);
+            if (word) items.push({ word, card });
+          }
+          for (const id of newIds) {
+            const word = await db.words.get(id);
+            if (!word) continue;
+            const card = await ensureCard(id);
+            items.push({ word, card });
+          }
         }
-        for (const id of newIds) {
-          const word = await db.words.get(id);
-          if (!word) continue;
-          const card = await ensureCard(id);
-          items.push({ word, card });
-        }
+
         if (cancelled) return;
         setQueue(items);
         if (items.length === 0) {
@@ -72,6 +104,8 @@ export default function StudyPage() {
     return () => {
       cancelled = true;
     };
+    // reviewIds가 URL에서 안정적이라 effect 1회 실행 (이 페이지는 mount 시 큐 빌드)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const correctRef = useRef(0);

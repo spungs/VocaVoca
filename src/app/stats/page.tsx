@@ -369,17 +369,34 @@ export default function StatsPage() {
 
       {/* missed words */}
       <div style={{ padding: '20px 24px 0' }}>
-        <p
-          className="vv-stamp"
+        <div
+          className="flex"
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'var(--vv-ink-3)',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
             marginBottom: 12,
           }}
         >
-          자주 틀리는 단어
-        </p>
+          <p
+            className="vv-stamp"
+            style={{ fontSize: 11, fontWeight: 700, color: 'var(--vv-ink-3)' }}
+          >
+            자주 틀리는 단어
+          </p>
+          {state.missed.length > 0 && (
+            <Link
+              href={`/study?ids=${state.missed.map((m) => m.id).join(',')}`}
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--vv-amber)',
+                textDecoration: 'none',
+              }}
+            >
+              전체 다시 학습 →
+            </Link>
+          )}
+        </div>
         {state.missed.length === 0 ? (
           <div
             style={{
@@ -404,14 +421,17 @@ export default function StatsPage() {
             }}
           >
             {state.missed.map((m, i, a) => (
-              <div
+              <Link
                 key={m.id}
-                className="flex"
+                href={`/study?ids=${m.id}`}
+                className="vv-press flex"
                 style={{
                   alignItems: 'center',
                   gap: 12,
                   padding: '12px 14px',
                   borderBottom: i < a.length - 1 ? '1px solid var(--vv-line)' : 'none',
+                  textDecoration: 'none',
+                  color: 'inherit',
                 }}
               >
                 <div
@@ -445,7 +465,17 @@ export default function StatsPage() {
                     {m.meaningKo}
                   </p>
                 </div>
-              </div>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--vv-ink-3)"
+                  strokeWidth="2.2"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </Link>
             ))}
           </div>
         )}
