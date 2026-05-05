@@ -5,6 +5,15 @@ import { useEffect, useState } from 'react';
 import { bootstrap } from '@/lib/bootstrap';
 import { getDb, type StudyPlan, type UserSettings } from '@/lib/db';
 import { buildDefaultPlan, daysUntil } from '@/lib/plan';
+import {
+  ACCENT_MAP,
+  getStoredAccent,
+  getStoredTheme,
+  setAccent,
+  setTheme,
+  type Accent,
+  type Theme,
+} from '@/lib/theme';
 
 const VOICE_OPTIONS: { value: UserSettings['preferredVoice']; label: string }[] = [
   { value: 'en-AU', label: '호주식 (en-AU)' },
@@ -14,6 +23,19 @@ const VOICE_OPTIONS: { value: UserSettings['preferredVoice']; label: string }[] 
 
 const NEW_CARD_OPTIONS = [10, 15, 20, 25];
 const REVIEW_CAP_OPTIONS = [50, 100, 150, 200];
+
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
+  { value: 'system', label: '시스템' },
+  { value: 'light', label: '라이트' },
+  { value: 'dark', label: '다크' },
+];
+
+const ACCENT_OPTIONS: { value: Accent; label: string }[] = [
+  { value: 'amber', label: '앰버' },
+  { value: 'eucalyptus', label: '유칼립' },
+  { value: 'coral', label: '코랄' },
+  { value: 'sky', label: '스카이' },
+];
 
 function toDateInputValue(ts: number): string {
   const d = new Date(ts);
@@ -26,6 +48,8 @@ function toDateInputValue(ts: number): string {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [plan, setPlan] = useState<StudyPlan | null>(null);
+  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme());
+  const [accent, setAccentState] = useState<Accent>(() => getStoredAccent());
   const [error, setError] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -47,6 +71,15 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  const updateTheme = (t: Theme) => {
+    setThemeState(t);
+    setTheme(t);
+  };
+  const updateAccent = (a: Accent) => {
+    setAccentState(a);
+    setAccent(a);
+  };
 
   const updateSettings = async (patch: Partial<UserSettings>) => {
     if (!settings) return;
@@ -131,6 +164,17 @@ export default function SettingsPage() {
         <p style={{ fontWeight: 700, fontSize: 15 }}>설정</p>
         <div style={{ width: 34 }} />
       </div>
+
+      {/* 테마 */}
+      <Section label="테마">
+        <FieldRow title="다크 모드" sub="시스템 자동 / 항상 라이트 / 항상 다크">
+          <SegmentedTheme value={theme} onChange={updateTheme} />
+        </FieldRow>
+        <Divider />
+        <FieldRow title="액센트 컬러" sub="시작 버튼·진행률 등 강조 색상">
+          <AccentSwatches value={accent} onChange={updateAccent} />
+        </FieldRow>
+      </Section>
 
       {/* 학습 분량 */}
       <Section label="학습 분량">
@@ -390,6 +434,108 @@ function SegmentedNumber({
             }}
           >
             {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SegmentedTheme({
+  value,
+  onChange,
+}: {
+  value: Theme;
+  onChange: (v: Theme) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${THEME_OPTIONS.length}, 1fr)`,
+        gap: 6,
+      }}
+    >
+      {THEME_OPTIONS.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className="vv-press"
+            style={{
+              padding: '10px 0',
+              border: '1px solid',
+              borderColor: active ? 'var(--vv-ink)' : 'var(--vv-line-2)',
+              background: active ? 'var(--vv-ink)' : 'transparent',
+              color: active ? 'var(--vv-bg)' : 'var(--vv-ink-2)',
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AccentSwatches({
+  value,
+  onChange,
+}: {
+  value: Accent;
+  onChange: (v: Accent) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: 12 }}>
+      {ACCENT_OPTIONS.map((opt) => {
+        const active = opt.value === value;
+        const c = ACCENT_MAP[opt.value].lightPrimary;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className="vv-press"
+            aria-label={opt.label}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 4px',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: c,
+                boxShadow: active
+                  ? `0 0 0 3px var(--vv-bg), 0 0 0 5px ${c}`
+                  : '0 1px 2px rgba(0,0,0,0.1)',
+                transition: 'box-shadow 160ms ease',
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: active ? 700 : 500,
+                color: active ? 'var(--vv-ink)' : 'var(--vv-ink-3)',
+              }}
+            >
+              {opt.label}
+            </span>
           </button>
         );
       })}
