@@ -5,6 +5,7 @@ import { dailyDeck } from './daily';
 import { farmDeck } from './farm';
 import { sharehouseDeck } from './sharehouse';
 import { adminDeck } from './admin';
+import { slangDeck } from './slang';
 
 export interface DeckBundle {
   deck: Deck;
@@ -18,4 +19,5 @@ export const allDecks: DeckBundle[] = [
   farmDeck,
   sharehouseDeck,
   adminDeck,
+  slangDeck,
 ];
