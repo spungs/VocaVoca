@@ -16,13 +16,12 @@ export default function AppleIcon() {
           justifyContent: 'center',
           color: '#FBF7F0',
           fontWeight: 800,
-          fontSize: 128,
+          fontSize: 54,
           letterSpacing: '-0.04em',
           lineHeight: 1,
-          paddingBottom: 8,
         }}
       >
-        V
+        Voca
       </div>
     ),
     { ...size },

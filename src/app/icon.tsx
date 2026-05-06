@@ -16,13 +16,12 @@ export default function Icon() {
           justifyContent: 'center',
           color: '#FBF7F0',
           fontWeight: 800,
-          fontSize: 360,
+          fontSize: 150,
           letterSpacing: '-0.04em',
           lineHeight: 1,
-          paddingBottom: 24,
         }}
       >
-        V
+        Voca
       </div>
     ),
     { ...size },
